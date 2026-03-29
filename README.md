@@ -1,8 +1,8 @@
-# TRIBE — Marketing Intelligence Powered by Neuroscience
+# Nexuli — Marketing Intelligence Powered by Neuroscience
 
 **Predict how human brains respond to your content before you spend a dollar.**
 
-TRIBE uses Meta's TRIBE v2 brain encoding model — trained on 720 human brains and 1,115 hours of fMRI data — to score your videos, audio, and text across 20,484 cortical brain locations. Know exactly which second loses attention, which modality carries engagement, and what triggers the decision to buy.
+Nexuli uses Meta's TRIBE v2 brain encoding model — trained on 720 human brains and 1,115 hours of fMRI data — to score your videos, audio, and text across 20,484 cortical brain locations. Know exactly which second loses attention, which modality carries engagement, and what triggers the decision to buy.
 
 Replace $50,000 neuromarketing lab studies with a 5-minute computation on a Mac Mini.
 
@@ -10,7 +10,7 @@ Replace $50,000 neuromarketing lab studies with a 5-minute computation on a Mac 
 
 ## What It Does
 
-Upload any content → TRIBE predicts brain activation across 12 cognitive systems → You get actionable scores, weak moments, fix recommendations, and competitive intelligence.
+Upload any content → Nexuli predicts brain activation across 12 cognitive systems → You get actionable scores, weak moments, fix recommendations, and competitive intelligence.
 
 ```
 Your ad (video/audio/text)
@@ -164,7 +164,7 @@ Pair TRIBE brain scores with real-world performance (CTR, conversion, watch time
 
 ```bash
 # Clone
-git clone https://github.com/TheAIuniversity/TRIBE.git
+git clone https://github.com/TheAIuniversity/NEXULI.git
 cd TRIBE
 
 # Install backend
@@ -206,7 +206,7 @@ GET  /api/health                   → TRIBE model status + agent health
 
 ## Data Separation
 
-TRIBE enforces strict separation between data sources to prevent false signals:
+Nexuli enforces strict separation between data sources to prevent false signals:
 
 | Source | What It Contains | Used For |
 |--------|-----------------|----------|
@@ -233,7 +233,7 @@ Read more: [Meta Research Paper](https://ai.meta.com/research/publications/a-fou
 ## Project Structure
 
 ```
-TRIBE/
+NEXULI/
 ├── backend/
 │   ├── server.py              # FastAPI server (22 endpoints)
 │   ├── tribe_engine.py        # TRIBE v2 model wrapper
@@ -266,17 +266,17 @@ TRIBE/
 
 ## Status
 
-The system architecture is complete. Waiting for hardware (Mac Mini M4) to activate the TRIBE v2 model for live inference.
+The Nexuli platform architecture is complete. Waiting for hardware (Mac Mini M4) to activate the TRIBE v2 model for live inference.
 
 **Built:** Backend (48 Python files), Frontend (20 tabs), Vault (28 files), 3D Brain Viewer
 **Audited:** Full code audit completed — 6 critical + 11 high issues found and fixed
-**Next:** Install TRIBE on Mac Mini → calibrate atlas → score first content → begin calibration study
+**Next:** Install TRIBE v2 on Mac Mini → calibrate atlas → score first content → begin calibration study
 
 See [ONGOING-PROGRESS.md](ONGOING-PROGRESS.md) for the full 9-phase roadmap.
 
 ## License
 
-The TRIBE codebase (this repository) is open source.
+The Nexuli codebase (this repository) is open source.
 
 Meta's TRIBE v2 pre-trained model weights are licensed under [CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/) (non-commercial). The frozen encoders (V-JEPA2, Wav2Vec-BERT, DINOv2) are commercially licensed. For commercial use, train your own fusion weights on your own data (see Phase 8 in ONGOING-PROGRESS.md).
 
