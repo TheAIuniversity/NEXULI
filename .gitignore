@@ -1,0 +1,41 @@
+# Data files (contain user-specific scores and patterns)
+backend/data/
+*.db
+*.sqlite
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.*
+
+# Uploads
+backend/uploads/
+
+# Brain assets (generated, large binary files)
+backend/brain_assets/
+public/brain/*.glb
+
+# TRIBE model cache (15GB+ of model weights)
+backend/cache/
+
+# Analysis clones (research repos)
+tribev2-analysis/
+
+# IDE
+.vscode/
+.idea/
+
+# Credentials
+*.key
+*.pem
+*.p12
+credentials*
+backend/.npm-cache/
