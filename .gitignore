@@ -39,3 +39,4 @@ tribev2-analysis/
 *.p12
 credentials*
 backend/.npm-cache/
+.npm-cache/
