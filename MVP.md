@@ -117,7 +117,7 @@ CREATE TABLE users (
     id TEXT PRIMARY KEY,
     email TEXT UNIQUE NOT NULL,
     password_hash TEXT NOT NULL,
-    plan TEXT DEFAULT 'free',          -- 'free' | 'pro'
+    plan TEXT DEFAULT 'free',          -- 'free' | 'pro' | 'discuss'
     stripe_customer_id TEXT,
     stripe_subscription_id TEXT,
     language TEXT DEFAULT 'en',
@@ -177,6 +177,158 @@ CREATE TABLE ip_tracking (
     PRIMARY KEY (ip_address, week_start)
 );
 ```
+
+### discussions (Plan/Discuss mode)
+```sql
+CREATE TABLE discussions (
+    id TEXT PRIMARY KEY,
+    user_id TEXT REFERENCES users(id),
+    analysis_id TEXT REFERENCES analyses(id),
+    messages TEXT NOT NULL,              -- JSON array van {role, content, timestamp}
+
+    -- Extracted insights (na "End Session")
+    insights TEXT,                       -- JSON: {key_insights, action_items, ideas, decisions, summary}
+
+    -- Metadata
+    duration_seconds REAL DEFAULT 0,
+    message_count INTEGER DEFAULT 0,
+    voice_enabled BOOLEAN DEFAULT FALSE,
+    language TEXT DEFAULT 'en',
+    created_at REAL DEFAULT (unixepoch()),
+    ended_at REAL
+);
+```
+
+---
+
+## Plan/Discuss Mode (€42/mnd plan)
+
+### Wat het is
+Na een brain analyse kan de Discuss-plan gebruiker in gesprek gaan met het systeem over de resultaten. Het systeem praat terug (tekst + optioneel voice), refereert naar specifieke brain data, en aan het einde wordt het gesprek geanalyseerd voor actie-items en ideeën.
+
+### Tech Stack
+| Component | Technologie | Draait op | Kosten/mnd | Kwaliteit | Latency |
+|---|---|---|---|---|---|
+| Voice input (STT) | **Parakeet 0.6B** via parakeet-mlx | Mac Mini lokaal | €0 | 8/10 | ~50ms |
+| Gesprek AI (LLM) | **Claude Sonnet 4** API (streaming) | Cloud (Anthropic) | €2.50 | 9/10 | ~500ms |
+| Insight extractie | **Claude Sonnet 4** (1 call per sessie einde) | Cloud | (incl.) | 9/10 | — |
+| Voice output (TTS) | **Qwen3-TTS 1.7B** via mlx-audio | Mac Mini lokaal | €0 | 9/10 | ~100ms |
+| Real-time infra | **LiveKit Agents** (open source) | Mac Mini lokaal | €0 | — | — |
+| **Totaal** | | | **€2.50/mnd** | **9/10** | **~700ms** |
+
+**Waarom deze stack:**
+- Qwen3-TTS scoort 9% beter dan ElevenLabs op benchmarks, draait gratis op Apple Silicon
+- Parakeet STT: 50ms voor 10 seconden audio op M4, gratis, lokaal
+- Claude Sonnet 4: beste conversatie-kwaliteit voor marketing, €2.50/mnd voor 20 sessies
+- LiveKit: open source real-time voice infra (WebRTC/WebSocket), gratis self-hosted
+- Totale latency ~700ms user-to-response — sneller dan de meeste commerciële platforms
+- Marge op €42 plan: **€39.50 (94%)**
+
+**Mac Mini M4 RAM verdeling:**
+- Parakeet STT: ~2 GB
+- Qwen3-TTS: ~4 GB
+- LiveKit: ~0.5 GB
+- Totaal: ~6.5 GB van 16 GB beschikbaar (ruim genoeg)
+
+### System Prompt Template
+```
+Je bent Nexuli's brain analysis expert. Je bespreekt de resultaten van een
+TRIBE v2 brain scan met de gebruiker. Je refereert ALTIJD naar specifieke
+data — nooit generiek advies.
+
+TRIBE ANALYSE DATA:
+{content_score_json}
+
+TEMPORAL DYNAMICS:
+{temporal_dynamics_json}
+
+BRAIN GUIDELINES:
+{agent_brain_guidelines_json}
+
+REGELS:
+- Refereer naar specifieke seconden, regio's, en scores
+- Als de user vraagt "waarom", verwijs naar de exacte brain regio + activatie
+- Als de user vraagt "hoe fix ik dit", geef concrete creative aanbevelingen
+- Spreek in de taal van de user ({language})
+- Houd antwoorden beknopt (max 3-4 zinnen) tenzij de user diepgang vraagt
+```
+
+### Extractie Prompt (End Session)
+```
+Analyseer dit gesprek over content marketing brain-scan resultaten.
+
+TRANSCRIPT:
+{full_conversation_json}
+
+Geef terug in JSON:
+{
+  "key_insights": ["strategische inzichten — wat de user leerde"],
+  "action_items": [{"action": "...", "priority": "high|medium|low", "category": "content|strategy|testing|creative"}],
+  "ideas": ["creatieve ideeën om te testen"],
+  "decisions_made": ["expliciete besluiten genomen tijdens het gesprek"],
+  "summary": "2-3 zinnen samenvatting"
+}
+```
+
+### Flow
+```
+1. User opent analyse resultaat
+2. Klikt "Discuss This Analysis" (alleen Discuss plan)
+3. Chat interface opent naast de brain visualisatie
+4. System prompt geladen met ALLE TRIBE data van deze analyse
+5. User typt of spreekt (Web Speech API)
+6. Claude Haiku streamt antwoord (SSE, token voor token)
+7. Optioneel: OpenAI TTS spreekt antwoord voor (streaming)
+8. Gesprek gaat door (max 20 minuten / 30 berichten)
+9. User klikt "End Session"
+10. Claude Haiku extractie: insights + action items + ideas
+11. Resultaat opgeslagen in discussions tabel
+12. User ziet: samenvatting, actie-lijst, idee-lijst
+13. Alles terugvindbaar in /account
+```
+
+### API Endpoints (nieuw)
+```
+POST /api/discuss/start         → {analysis_id} → creates discussion, returns discussion_id
+POST /api/discuss/message       → {discussion_id, message} → streamt response (SSE)
+POST /api/discuss/end           → {discussion_id} → extracts insights, returns summary
+GET  /api/discuss/{id}          → returns full discussion + insights
+POST /api/discuss/tts           → {text} → returns audio stream (OpenAI TTS)
+```
+
+### Rate Limits
+- Discuss plan (€42/mnd): 20 discussion sessies per maand
+- Per sessie: max 30 berichten of 20 minuten
+- Free/Pro plan: geen toegang (ziet "Upgrade to Discuss" prompt)
+
+### Voice Mode UX
+```
+┌─────────────────────────────────────┐
+│  🎙️ [Press to speak]  |  ⌨️ [Type] │  ← toggle voice/text input
+│                                      │
+│  You: Why does attention drop at 6s? │
+│                                      │
+│  Nexuli: Op seconde 6 daalt je...   │  ← tekst verschijnt streaming
+│  🔊 [audio speelt tegelijk]         │  ← TTS speelt tegelijk
+│                                      │
+│  You: How do I fix that?            │
+│                                      │
+│  Nexuli: Voeg een talking head...   │
+│                                      │
+│  ─────────────────────────────────  │
+│  [End Session → Get Action Items]    │
+└─────────────────────────────────────┘
+```
+
+---
+
+## Pricing (Updated met Discuss plan)
+
+| Plan | Prijs | Analyses | Features |
+|------|-------|----------|----------|
+| **Free** | €0 | 2/week | Basis resultaten, geen opslag |
+| **Pro** | €22/mnd | 10 single + 10 comparison /week | Opslag, chat met brein, coming soon: niche insights |
+| **Discuss** | €42/mnd | Alles van Pro | + Plan/Discuss mode (voice + text), 20 sessies/mnd, actie-lijsten, idee-lijsten, conversation logging, insight extractie |
 
 ---
 
